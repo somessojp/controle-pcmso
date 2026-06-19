@@ -232,17 +232,43 @@ async function api(acao, dados={}){
 
 async function fazerLogin(){
   const email = emailLogin.value.trim().toLowerCase();
-  if(!email){alert('Digite seu e-mail.');return}
+
+  if(!email){
+    alert('Digite seu e-mail.');
+    return;
+  }
+
   msgLogin.textContent='Verificando acesso...';
+
   try{
     const r = await api('login',{email});
-    if(!r.ok){msgLogin.textContent=r.erro||'Acesso negado';return}
+
+    if(!r.ok){
+      msgLogin.textContent = r.erro || 'Acesso negado';
+      return;
+    }
+
     usuarioLogado = r.usuario;
-    localStorage.setItem('usuario_pcmsο_email', email);
-    loginBox.style.display='none'; appBox.style.display='block';
-    usuarioInfo.textContent = `${usuarioLogado.nome} - ${usuarioLogado.perfil}`;
+
+    localStorage.setItem('usuario_pcmso_email', email);
+
+    localStorage.setItem(
+      'usuario_pcmso',
+      JSON.stringify(r.usuario)
+    );
+
+    loginBox.style.display='none';
+    appBox.style.display='block';
+
+    usuarioInfo.textContent =
+      `${usuarioLogado.nome} - ${usuarioLogado.perfil}`;
+
     await carregarDados();
-  }catch(e){msgLogin.textContent='Erro ao conectar com a API: '+e.message}
+
+  }catch(e){
+    msgLogin.textContent =
+      'Erro ao conectar com a API: ' + e.message;
+  }
 }
 
 function sair(){localStorage.removeItem('usuario_pcmsο_email');location.reload()}
@@ -336,7 +362,27 @@ function excel(){let htmlExcel=`<html><head><meta charset="UTF-8"></head><body>$
 function pdf(){let mes=mespdf.value;if(!mes){alert('Escolha um mês.');return}let linhas='';itens.forEach(item=>{if(item.data.startsWith(mes)){let st=statusData(item.data);linhas+=`<tr><td>${esc(item.responsavel)}</td><td>${esc(item.contato)}</td><td>${esc(item.telefone)}</td><td>${esc(item.email)}</td><td>${esc(item.cnpj)}</td><td>${esc(item.empresa)}</td><td>${esc(item.tipoEmpresa)||'-'}</td><td>${moeda(item.valor)}</td><td>${esc(item.descricao)}</td><td>${formatarData(item.data)}</td><td>${esc(item.anexoNome||'-')}</td><td>${st[0]}</td></tr>`}});if(!linhas){alert('Nenhum registro encontrado.');return}let win=window.open('');win.document.write(`<html><head><title>Relatório Mensal</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:6px;font-size:12px;text-align:left}th{background:#ddd}</style></head><body><h2>Relatório Mensal - PCMSO</h2><table><thead><tr><th>Responsável</th><th>Contato</th><th>Telefone</th><th>E-mail</th><th>CNPJ</th><th>Empresa</th><th>Tipo da Empresa</th><th>Valor</th><th>Descrição</th><th>Vencimento</th><th>Anexo</th><th>Status</th></tr></thead><tbody>${linhas}</tbody></table></body></html>`);win.document.close();win.print()}
 
 busca.addEventListener('keyup', render);
-window.addEventListener('load',()=>{let email=localStorage.getItem('usuario_pcmsο_email'); if(email){emailLogin.value=email;}});
+window.addEventListener('load', async () => {
+  const usuarioSalvo = localStorage.getItem('usuario_pcmso');
+
+  if (usuarioSalvo) {
+    usuarioLogado = JSON.parse(usuarioSalvo);
+
+    loginBox.style.display = 'none';
+    appBox.style.display = 'block';
+
+    usuarioInfo.textContent =
+      `${usuarioLogado.nome} - ${usuarioLogado.perfil}`;
+
+    await carregarDados();
+    return;
+  }
+
+  const email = localStorage.getItem('usuario_pcmso_email') || '';
+  if (email) {
+    emailLogin.value = email;
+  }
+});
 </script>
 </body>
 </html>
