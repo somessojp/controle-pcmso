@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de vencimento de PCMSO Online</title>
+<style>
+*{box-sizing:border-box} body{font-family:Arial;background:#f4f4f4;padding:20px;margin:0}.box{background:#fff;padding:20px;border-radius:10px;max-width:1400px;margin:auto;margin-bottom:18px;overflow:auto}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}input,select,button{padding:10px;font-size:14px}button{background:#1976d2;color:white;border:none;border-radius:6px;cursor:pointer}button:hover{opacity:.9}button:disabled{opacity:.6;cursor:not-allowed}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #ccc;padding:8px;text-align:center;font-size:13px}th{background:#1976d2;color:white}.vencido{background:#ffb3b3}.alerta{background:#fff3b0}.hoje{background:#ffd966}.ok{background:#b6f0c2}.cards{display:flex;gap:10px;margin:15px 0;flex-wrap:wrap}.card{background:#eee;padding:10px;border-radius:8px;min-width:140px;text-align:center;font-weight:bold}.top-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}a{color:#1976d2;font-weight:bold;text-decoration:none}a:hover{text-decoration:underline}.login{max-width:600px;margin:40px auto}.barra{max-width:1400px;margin:0 auto 12px auto;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.msg{font-weight:bold;color:#333}.small{font-size:12px;color:#555}
+</style>
+</head>
+<body>
+
+<div id="loginBox" class="box login">
+  <h2>Login - Controle de vencimento de PCMSO</h2>
+  <p>Digite o e-mail cadastrado na aba <b>Usuarios</b>.</p>
+  <div class="grid">
+    <input id="emailLogin" type="email" placeholder="Seu e-mail">
+    <button onclick="fazerLogin()">Entrar</button>
+  </div>
+  <p id="msgLogin" class="msg"></p>
+</div>
+
+<div id="appBox" style="display:none">
+<div class="barra">
+  <div><b id="usuarioInfo"></b><br><span class="small">Dados salvos no Google Sheets e anexos no Google Drive</span></div>
+  <div><button onclick="carregarDados()">Atualizar dados</button> <button onclick="sair()">Sair</button></div>
+</div>
+
+<div class="box">
+<h2>Controle de vencimento de PCMSO</h2>
+<div class="grid">
+<input id="responsavel" placeholder="Responsável">
+<input id="contato" placeholder="Contato">
+<input id="telefone" placeholder="Telefone">
+<input id="email" placeholder="E-mail">
+<input id="cnpj" placeholder="CNPJ">
+<input id="empresa" placeholder="Empresa">
+<select id="tipoEmpresa">
+<option value="">Tipo da Empresa</option>
+<option value="À VISTA">À VISTA</option>
+<option value="SEM COORDENAÇÃO">SEM COORDENAÇÃO</option>
+<option value="GESTÃO">GESTÃO</option>
+</select>
+<input id="valor" type="number" placeholder="Valor">
+<input id="descricao" placeholder="Descrição">
+<input id="anexo" type="file">
+<input id="data" type="date">
+</div>
+<br>
+<button id="btnAdicionar" onclick="add()">Adicionar</button>
+<button id="btnCancelar" onclick="cancelarEdicao()" style="display:none;background:#777">Cancelar edição</button>
+<p id="msgSistema" class="msg"></p>
+
+<h3>Pesquisa Inteligente</h3>
+<div class="top-actions">
+<input id="busca" placeholder="Pesquisar qualquer palavra..." style="flex:1;">
+<input type="month" id="mespdf">
+<button id="btnExcel" onclick="excel()">Exportar Excel</button>
+<button id="btnPdf" onclick="pdf()">PDF Mensal</button>
+</div>
+
+<div class="cards">
+<div class="card">Vencidos<br><span id="cv">0</span></div>
+<div class="card">Alertas<br><span id="ca">0</span></div>
+<div class="card">Hoje<br><span id="ch">0</span></div>
+<div class="card">Total<br><span id="ct">0</span></div>
+</div>
+
+<table id="tab">
+<thead><tr>
+<th>Responsável</th><th>Contato</th><th>Telefone</th><th>E-mail</th><th>CNPJ</th><th>Empresa</th><th>Tipo da Empresa</th><th>Valor</th><th>Descrição</th><th>Vencimento</th><th>Anexo</th><th>Status</th><th>Ação</th>
+</tr></thead>
+<tbody id="tb"></tbody>
+</table>
+</div>
+</div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbwFK_2-4Ni6HcIDxh6rnYMOAjAiDds23DOPzi4prqdY4FCDCb4692MGfQTLuLNSq4lVVQ/exec';
+let itens = [];
+let editandoId = null;
+let usuarioLogado = null;
+
+async function api(acao, dados={}){
+  const resp = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({acao, ...dados})});
+  const txt = await resp.text();
+  try{return JSON.parse(txt)}catch(e){console.error(txt);throw new Error('Resposta inválida da API')}
+}
+
+async function fazerLogin(){
+  const email = emailLogin.value.trim().toLowerCase();
+  if(!email){alert('Digite seu e-mail.');return}
+  msgLogin.textContent='Verificando acesso...';
+  try{
+    const r = await api('login',{email});
+    if(!r.ok){msgLogin.textContent=r.erro||'Acesso negado';return}
+    usuarioLogado = r.usuario;
+    localStorage.setItem('usuario_pcmsο_email', email);
+    loginBox.style.display='none'; appBox.style.display='block';
+    usuarioInfo.textContent = `${usuarioLogado.nome} - ${usuarioLogado.perfil}`;
+    await carregarDados();
+  }catch(e){msgLogin.textContent='Erro ao conectar com a API: '+e.message}
+}
+
+function sair(){localStorage.removeItem('usuario_pcmsο_email');location.reload()}
+
+async function carregarDados(){
+  msgSistema.textContent='Carregando dados...';
+  try{
+    const r = await api('listar');
+    itens = (r.pcmsos || []).map(normalizarItem);
+    render();
+    msgSistema.textContent='Dados atualizados.';
+  }catch(e){msgSistema.textContent='Erro ao carregar dados: '+e.message}
+}
+
+function normalizarItem(x){
+  return {
+    id: x.ID || x.id || '',
+    responsavel: x['Responsável'] || x.responsavel || '',
+    contato: x.Contato || x.contato || '',
+    telefone: x.Telefone || x.telefone || '',
+    email: x.Email || x['E-mail'] || x.email || '',
+    cnpj: x.CNPJ || x.cnpj || '',
+    empresa: x.Empresa || x.empresa || '',
+    tipoEmpresa: x['Tipo Empresa'] || x['Tipo da Empresa'] || x.tipoEmpresa || '',
+    valor: x.Valor || x.valor || '',
+    descricao: x['Descrição'] || x.Descricao || x.descricao || '',
+    data: normalizarData(x['Data Vencimento'] || x.dataVencimento || x.data || ''),
+    linkAnexo: x['Link Anexo'] || x.linkAnexo || '',
+    anexoNome: x['Nome Anexo'] || x.nomeAnexo || x.anexoNome || ''
+  }
+}
+
+function normalizarData(v){
+  if(!v)return '';
+  let s=String(v);
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+  let m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/); if(m)return `${m[3]}-${m[2]}-${m[1]}`;
+  return s.slice(0,10);
+}
+
+function statusData(data){
+  let hoje = new Date(); hoje.setHours(0,0,0,0);
+  let venc = new Date(data+'T00:00:00'); venc.setHours(0,0,0,0);
+  let dias = Math.ceil((venc - hoje)/(1000*60*60*24));
+  if(isNaN(dias)) return ['Sem data','vencido'];
+  if(dias < 0) return [`Vencido há ${Math.abs(dias)} dia(s)`, 'vencido'];
+  if(dias === 0) return ['Vence Hoje', 'hoje'];
+  if(dias <= 60) return [`Alerta - Faltam ${dias} dia(s)`, 'alerta'];
+  return [`Em Dia - ${dias} dia(s) restantes`, 'ok'];
+}
+function formatarData(data){if(!data)return '-';let p=String(data).split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:data}
+function moeda(v){return Number(String(v||0).replace(',','.')).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+function limparCampos(){['responsavel','contato','telefone','email','cnpj','empresa','tipoEmpresa','valor','descricao','data','anexo'].forEach(id=>document.getElementById(id).value='')}
+
+function render(){
+  tb.innerHTML='';
+  let busca = buscaEl().value.toLowerCase().trim();
+  let vencidos=0, alertas=0, hojeQtd=0;
+  itens.sort((a,b)=>new Date(a.data+'T00:00:00')-new Date(b.data+'T00:00:00')).forEach((item,index)=>{
+    let st=statusData(item.data);
+    let texto=`${item.responsavel} ${item.contato} ${item.telefone} ${item.email} ${item.cnpj} ${item.empresa} ${item.tipoEmpresa} ${item.valor} ${item.descricao} ${item.data} ${st[0]}`.toLowerCase();
+    if(busca && !busca.split(' ').filter(Boolean).every(p=>texto.includes(p))) return;
+    if(st[1]==='vencido') vencidos++; if(st[1]==='alerta') alertas++; if(st[1]==='hoje') hojeQtd++;
+    tb.innerHTML += `<tr class="${st[1]}"><td>${esc(item.responsavel)}</td><td>${esc(item.contato)}</td><td>${esc(item.telefone)}</td><td>${esc(item.email)}</td><td>${esc(item.cnpj)}</td><td>${esc(item.empresa)}</td><td>${esc(item.tipoEmpresa)||'-'}</td><td>${moeda(item.valor)}</td><td>${esc(item.descricao)}</td><td>${formatarData(item.data)}</td><td>${item.linkAnexo?`<a href="${item.linkAnexo}" target="_blank">📎 ${esc(item.anexoNome||'Anexo')}</a>`:'-'}</td><td>${st[0]}</td><td><button onclick="editar(${index})">Editar</button> <button onclick="del('${item.id}')">Excluir</button></td></tr>`;
+  });
+  cv.innerText=vencidos; ca.innerText=alertas; ch.innerText=hojeQtd; ct.innerText=itens.length;
+}
+function buscaEl(){return document.getElementById('busca')}
+function esc(v){return String(v??'').replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+
+async function add(){
+  let arquivo = anexo.files[0];
+  let obj = {id:editandoId||'', responsavel:responsavel.value.trim(), contato:contato.value.trim(), telefone:telefone.value.trim(), email:email.value.trim(), cnpj:cnpj.value.trim(), empresa:empresa.value.trim(), tipoEmpresa:tipoEmpresa.value, valor:valor.value.trim(), descricao:descricao.value.trim(), dataVencimento:data.value, linkAnexo:'', nomeAnexo:''};
+  for(let k of ['responsavel','contato','telefone','email','cnpj','empresa','tipoEmpresa','valor','descricao','dataVencimento']){if(!obj[k]){alert('Preencha todos os campos.');return}}
+  if(editandoId){ let atual=itens.find(x=>x.id===editandoId); obj.linkAnexo=atual?.linkAnexo||''; obj.nomeAnexo=atual?.anexoNome||''; }
+  btnAdicionar.disabled=true; msgSistema.textContent='Salvando...';
+  try{
+    if(arquivo){ const base64 = await lerArquivo(arquivo); obj.anexoBase64=base64; obj.nomeAnexo=arquivo.name; }
+    const r = await api('salvarPCMSO', obj);
+    if(!r.ok){alert(r.erro||'Erro ao salvar.');return}
+    editandoId=null; btnAdicionar.innerText='Adicionar'; btnCancelar.style.display='none'; limparCampos(); await carregarDados(); alert('Registro salvo com sucesso!');
+  }catch(e){alert('Erro ao salvar: '+e.message)}finally{btnAdicionar.disabled=false}
+}
+function lerArquivo(file){return new Promise((resolve,reject)=>{let r=new FileReader();r.onload=e=>resolve(e.target.result);r.onerror=reject;r.readAsDataURL(file)})}
+
+function editar(index){let item=itens[index]; editandoId=item.id; responsavel.value=item.responsavel; contato.value=item.contato; telefone.value=item.telefone; email.value=item.email; cnpj.value=item.cnpj; empresa.value=item.empresa; tipoEmpresa.value=item.tipoEmpresa||''; valor.value=item.valor; descricao.value=item.descricao; data.value=item.data; btnAdicionar.innerText='Salvar Edição'; btnCancelar.style.display='inline-block'; window.scrollTo({top:0,behavior:'smooth'})}
+function cancelarEdicao(){editandoId=null; btnAdicionar.innerText='Adicionar'; btnCancelar.style.display='none'; limparCampos()}
+async function del(id){if(!confirm('Deseja excluir este registro?'))return; msgSistema.textContent='Excluindo...'; try{await api('excluirPCMSO',{id}); await carregarDados()}catch(e){alert('Erro ao excluir: '+e.message)}}
+
+function excel(){let htmlExcel=`<html><head><meta charset="UTF-8"></head><body>${tab.outerHTML}</body></html>`;let blob=new Blob([htmlExcel],{type:'application/vnd.ms-excel'});let link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='controle_vencimento_pcmsο.xls';document.body.appendChild(link);link.click();document.body.removeChild(link)}
+function pdf(){let mes=mespdf.value;if(!mes){alert('Escolha um mês.');return}let linhas='';itens.forEach(item=>{if(item.data.startsWith(mes)){let st=statusData(item.data);linhas+=`<tr><td>${esc(item.responsavel)}</td><td>${esc(item.contato)}</td><td>${esc(item.telefone)}</td><td>${esc(item.email)}</td><td>${esc(item.cnpj)}</td><td>${esc(item.empresa)}</td><td>${esc(item.tipoEmpresa)||'-'}</td><td>${moeda(item.valor)}</td><td>${esc(item.descricao)}</td><td>${formatarData(item.data)}</td><td>${esc(item.anexoNome||'-')}</td><td>${st[0]}</td></tr>`}});if(!linhas){alert('Nenhum registro encontrado.');return}let win=window.open('');win.document.write(`<html><head><title>Relatório Mensal</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:6px;font-size:12px;text-align:left}th{background:#ddd}</style></head><body><h2>Relatório Mensal - PCMSO</h2><table><thead><tr><th>Responsável</th><th>Contato</th><th>Telefone</th><th>E-mail</th><th>CNPJ</th><th>Empresa</th><th>Tipo da Empresa</th><th>Valor</th><th>Descrição</th><th>Vencimento</th><th>Anexo</th><th>Status</th></tr></thead><tbody>${linhas}</tbody></table></body></html>`);win.document.close();win.print()}
+
+busca.addEventListener('keyup', render);
+window.addEventListener('load',()=>{let email=localStorage.getItem('usuario_pcmsο_email'); if(email){emailLogin.value=email;}});
+</script>
+</body>
+</html>
