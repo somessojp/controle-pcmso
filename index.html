@@ -5,7 +5,150 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Controle de vencimento de PCMSO Online</title>
 <style>
-*{box-sizing:border-box} body{font-family:Arial;background:#f4f4f4;padding:20px;margin:0}.box{background:#fff;padding:20px;border-radius:10px;max-width:1400px;margin:auto;margin-bottom:18px;overflow:auto}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}input,select,button{padding:10px;font-size:14px}button{background:#1976d2;color:white;border:none;border-radius:6px;cursor:pointer}button:hover{opacity:.9}button:disabled{opacity:.6;cursor:not-allowed}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #ccc;padding:8px;text-align:center;font-size:13px}th{background:#1976d2;color:white}.vencido{background:#ffb3b3}.alerta{background:#fff3b0}.hoje{background:#ffd966}.ok{background:#b6f0c2}.cards{display:flex;gap:10px;margin:15px 0;flex-wrap:wrap}.card{background:#eee;padding:10px;border-radius:8px;min-width:140px;text-align:center;font-weight:bold}.top-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}a{color:#1976d2;font-weight:bold;text-decoration:none}a:hover{text-decoration:underline}.login{max-width:600px;margin:40px auto}.barra{max-width:1400px;margin:0 auto 12px auto;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.msg{font-weight:bold;color:#333}.small{font-size:12px;color:#555}
+*{box-sizing:border-box}
+
+body{
+  font-family:Arial;
+  background:#F5F5F0;
+  padding:20px;
+  margin:0;
+  color:#2b2b2b;
+}
+
+.box{
+  background:#fff;
+  padding:20px;
+  border-radius:12px;
+  max-width:1400px;
+  margin:auto;
+  margin-bottom:18px;
+  overflow:auto;
+  box-shadow:0 4px 14px rgba(0,0,0,.06);
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:10px;
+}
+
+input,select,button{
+  padding:10px;
+  font-size:14px;
+}
+
+input,select{
+  border:1px solid #cfcfc7;
+  border-radius:6px;
+}
+
+button{
+  background:#556B2F;
+  color:white;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  font-weight:bold;
+}
+
+button:hover{
+  background:#6B8E23;
+}
+
+button:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:20px;
+}
+
+th,td{
+  border:1px solid #ccc;
+  padding:8px;
+  text-align:center;
+  font-size:13px;
+}
+
+th{
+  background:#556B2F;
+  color:white;
+}
+
+.vencido{background:#ffb3b3}
+.alerta{background:#fff3b0}
+.hoje{background:#ffd966}
+.ok{background:#dce8cf}
+
+.cards{
+  display:flex;
+  gap:10px;
+  margin:15px 0;
+  flex-wrap:wrap;
+}
+
+.card{
+  background:#eef4e4;
+  border-left:5px solid #556B2F;
+  padding:12px;
+  border-radius:8px;
+  min-width:140px;
+  text-align:center;
+  font-weight:bold;
+}
+
+.top-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+
+a{
+  color:#556B2F;
+  font-weight:bold;
+  text-decoration:none;
+}
+
+a:hover{
+  text-decoration:underline;
+}
+
+.login{
+  max-width:600px;
+  margin:40px auto;
+}
+
+.login h2{
+  color:#556B2F;
+}
+
+.barra{
+  max-width:1400px;
+  margin:0 auto 12px auto;
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.msg{
+  font-weight:bold;
+  color:#333;
+}
+
+.small{
+  font-size:12px;
+  color:#555;
+}
+
+h2,h3{
+  color:#35451F;
+}
 </style>
 </head>
 <body>
