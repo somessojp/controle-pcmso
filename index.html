@@ -172,7 +172,11 @@ h2,h3{
 <div class="box">
 <h2>Controle de vencimento de PCMSO</h2>
 <div class="grid">
-<input id="responsavel" placeholder="Responsável">
+<select id="responsavel">
+  <option value="">Selecione o responsável</option>
+  <option value="Tassio Borges">Tassio Borges</option>
+  <option value="Tamilla Pereira">Tamilla Pereira</option>
+</select>
 <input id="contato" placeholder="Contato">
 <input id="telefone" placeholder="Telefone">
 <input id="email" placeholder="E-mail">
@@ -197,6 +201,11 @@ h2,h3{
 <h3>Pesquisa Inteligente</h3>
 <div class="top-actions">
 <input id="busca" placeholder="Pesquisar qualquer palavra..." style="flex:1;">
+  <select id="filtroResponsavel" onchange="render()">
+  <option value="">Todos os responsáveis</option>
+  <option value="Tassio Borges">Tassio Borges</option>
+  <option value="Tamilla Pereira">Tamilla Pereira</option>
+</select>
 <input type="month" id="mespdf">
 <button id="btnExcel" onclick="excel()">Exportar Excel</button>
 <button id="btnPdf" onclick="pdf()">PDF Mensal</button>
@@ -249,6 +258,19 @@ async function fazerLogin(){
     }
 
     usuarioLogado = r.usuario;
+    if(String(usuarioLogado.perfil || '').toUpperCase() !== 'ADM'){
+  responsavel.value =
+    usuarioLogado.consultorVinculado ||
+    usuarioLogado.vendedorVinculado ||
+    usuarioLogado.nome;
+
+  responsavel.disabled = true;
+
+  const filtroResp = document.getElementById('filtroResponsavel');
+  if(filtroResp){
+    filtroResp.style.display = 'none';
+  }
+}
 
     localStorage.setItem('usuario_pcmso_email', email);
 
@@ -348,6 +370,18 @@ function render(){
     });
 
   }
+  if(usuarioLogado && String(usuarioLogado.perfil || '').toUpperCase() === 'ADM'){
+  const filtroResp =
+    String(document.getElementById('filtroResponsavel')?.value || '')
+    .toLowerCase()
+    .trim();
+
+  if(filtroResp){
+    visiveis = visiveis.filter(item =>
+      String(item.responsavel || '').toLowerCase().trim() === filtroResp
+    );
+  }
+}
 
   let vencidos=0,
       alertas=0,
