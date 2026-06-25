@@ -146,6 +146,26 @@ a:hover{
   color:#555;
 }
 
+.modal{
+  display:none;
+  position:fixed;
+  z-index:999;
+  left:0;
+  top:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,.45);
+  padding:20px;
+}
+
+.modal-content{
+  background:#fff;
+  border-radius:12px;
+  padding:20px;
+  max-width:900px;
+  margin:40px auto;
+}
+
 h2,h3{
   color:#35451F;
 }
@@ -171,6 +191,8 @@ h2,h3{
 
 <div class="box">
 <h2>Controle de vencimento de PCMSO</h2>
+<button type="button" onclick="abrirCadastroEmpresas()">Cadastro de Empresas</button>
+<br><br>
 <div class="grid">
 <select id="responsavel">
   <option value="">Selecione o responsável</option>
@@ -227,9 +249,28 @@ h2,h3{
 </div>
 </div>
 
+
+<div id="modalEmpresas" class="modal">
+  <div class="modal-content">
+    <h3>Cadastro de Empresas</h3>
+    <div class="grid">
+      <input id="cadCnpj" placeholder="CNPJ">
+      <input id="cadEmpresa" placeholder="Empresa">
+      <input id="cadContato" placeholder="Contato">
+      <input id="cadTelefone" placeholder="Telefone">
+      <input id="cadEmail" placeholder="E-mail">
+    </div>
+    <br>
+    <button type="button" onclick="salvarCadastroEmpresa()">Salvar</button>
+    <button type="button" onclick="fecharCadastroEmpresas()" style="background:#777">Fechar</button>
+    <p class="small">Após salvar, ao preencher o CNPJ no formulário principal, os dados serão carregados automaticamente.</p>
+  </div>
+</div>
+
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbwFK_2-4Ni6HcIDxh6rnYMOAjAiDds23DOPzi4prqdY4FCDCb4692MGfQTLuLNSq4lVVQ/exec';
 let itens = [];
+let empresasCadastradas = [];
 let editandoId = null;
 let usuarioLogado = null;
 
@@ -258,19 +299,7 @@ async function fazerLogin(){
     }
 
     usuarioLogado = r.usuario;
-    if(String(usuarioLogado.perfil || '').toUpperCase() !== 'ADM'){
-  responsavel.value =
-    usuarioLogado.consultorVinculado ||
-    usuarioLogado.vendedorVinculado ||
-    usuarioLogado.nome;
-
-  responsavel.disabled = true;
-
-  const filtroResp = document.getElementById('filtroResponsavel');
-  if(filtroResp){
-    filtroResp.style.display = 'none';
-  }
-}
+    aplicarPermissoesUsuario();
 
     localStorage.setItem('usuario_pcmso_email', email);
 
@@ -285,6 +314,7 @@ async function fazerLogin(){
     usuarioInfo.textContent =
       `${usuarioLogado.nome} - ${usuarioLogado.perfil}`;
 
+    aplicarPermissoesUsuario();
     await carregarDados();
 
   }catch(e){
@@ -293,13 +323,15 @@ async function fazerLogin(){
   }
 }
 
-function sair(){localStorage.removeItem('usuario_pcmsο_email');location.reload()}
+function sair(){localStorage.removeItem('usuario_pcmso_email');localStorage.removeItem('usuario_pcmso');location.reload()}
 
 async function carregarDados(){
   msgSistema.textContent='Carregando dados...';
   try{
     const r = await api('listar');
     itens = (r.pcmsos || []).map(normalizarItem);
+    carregarEmpresasCadastradas();
+    aplicarPermissoesUsuario();
     render();
     msgSistema.textContent='Dados atualizados.';
   }catch(e){msgSistema.textContent='Erro ao carregar dados: '+e.message}
@@ -343,7 +375,10 @@ function statusData(data){
 }
 function formatarData(data){if(!data)return '-';let p=String(data).split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:data}
 function moeda(v){return Number(String(v||0).replace(',','.')).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
-function limparCampos(){['responsavel','contato','telefone','email','cnpj','empresa','tipoEmpresa','valor','descricao','data','anexo'].forEach(id=>document.getElementById(id).value='')}
+function limparCampos(){
+  ['responsavel','contato','telefone','email','cnpj','empresa','tipoEmpresa','valor','descricao','data','anexo'].forEach(id=>document.getElementById(id).value='');
+  aplicarPermissoesUsuario();
+}
 
 function render(){
 
@@ -429,6 +464,132 @@ function render(){
 function buscaEl(){return document.getElementById('busca')}
 function esc(v){return String(v??'').replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
 
+function cnpjLimpo(v){
+  return String(v || '').replace(/\D/g,'');
+}
+
+function isAdm(){
+  return String(usuarioLogado?.perfil || '').toUpperCase().trim() === 'ADM';
+}
+
+function responsavelUsuario(){
+  return usuarioLogado
+    ? (usuarioLogado.consultorVinculado || usuarioLogado.vendedorVinculado || usuarioLogado.nome || '')
+    : '';
+}
+
+function aplicarPermissoesUsuario(){
+  if(!usuarioLogado) return;
+
+  if(!isAdm()){
+    responsavel.value = responsavelUsuario();
+    responsavel.disabled = true;
+
+    const filtroResp = document.getElementById('filtroResponsavel');
+    if(filtroResp){
+      filtroResp.style.display = 'none';
+      filtroResp.value = '';
+    }
+  } else {
+    responsavel.disabled = false;
+
+    const filtroResp = document.getElementById('filtroResponsavel');
+    if(filtroResp){
+      filtroResp.style.display = 'block';
+    }
+  }
+}
+
+function carregarEmpresasCadastradas(){
+  const locais = JSON.parse(localStorage.getItem('empresas_pcmso') || '[]');
+
+  const vindasDosRegistros = itens
+    .filter(i => i.cnpj)
+    .map(i => ({
+      cnpj: cnpjLimpo(i.cnpj),
+      empresa: i.empresa || '',
+      contato: i.contato || '',
+      telefone: i.telefone || '',
+      email: i.email || ''
+    }));
+
+  const mapa = {};
+
+  [...vindasDosRegistros, ...locais].forEach(e => {
+    const c = cnpjLimpo(e.cnpj);
+    if(c){
+      mapa[c] = {
+        cnpj: c,
+        empresa: e.empresa || '',
+        contato: e.contato || '',
+        telefone: e.telefone || '',
+        email: e.email || ''
+      };
+    }
+  });
+
+  empresasCadastradas = Object.values(mapa);
+}
+
+function abrirCadastroEmpresas(){
+  modalEmpresas.style.display='block';
+}
+
+function fecharCadastroEmpresas(){
+  modalEmpresas.style.display='none';
+}
+
+async function salvarCadastroEmpresa(){
+  let obj = {
+    cnpj: cnpjLimpo(cadCnpj.value),
+    empresa: cadEmpresa.value.trim(),
+    contato: cadContato.value.trim(),
+    telefone: cadTelefone.value.trim(),
+    email: cadEmail.value.trim()
+  };
+
+  if(obj.cnpj.length !== 14){
+    alert('CNPJ inválido.');
+    return;
+  }
+
+  for(let k in obj){
+    if(!obj[k]){
+      alert('Preencha todos os campos da empresa.');
+      return;
+    }
+  }
+
+  const locais = JSON.parse(localStorage.getItem('empresas_pcmso') || '[]');
+  const semDuplicar = locais.filter(e => cnpjLimpo(e.cnpj) !== obj.cnpj);
+  semDuplicar.push(obj);
+  localStorage.setItem('empresas_pcmso', JSON.stringify(semDuplicar));
+
+  carregarEmpresasCadastradas();
+
+  cadCnpj.value = '';
+  cadEmpresa.value = '';
+  cadContato.value = '';
+  cadTelefone.value = '';
+  cadEmail.value = '';
+
+  fecharCadastroEmpresas();
+  alert('Empresa cadastrada com sucesso!');
+}
+
+function preencherEmpresaPorCNPJ(){
+  let c = cnpjLimpo(cnpj.value);
+  let emp = empresasCadastradas.find(e => cnpjLimpo(e.cnpj) === c);
+
+  if(emp){
+    empresa.value = emp.empresa || '';
+    contato.value = emp.contato || '';
+    telefone.value = emp.telefone || '';
+    email.value = emp.email || '';
+  }
+}
+
+
 async function add(){
   let arquivo = anexo.files[0];
 
@@ -503,6 +664,7 @@ async function del(id){if(!confirm('Deseja excluir este registro?'))return; msgS
 function excel(){let htmlExcel=`<html><head><meta charset="UTF-8"></head><body>${tab.outerHTML}</body></html>`;let blob=new Blob([htmlExcel],{type:'application/vnd.ms-excel'});let link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='controle_vencimento_pcmsο.xls';document.body.appendChild(link);link.click();document.body.removeChild(link)}
 function pdf(){let mes=mespdf.value;if(!mes){alert('Escolha um mês.');return}let linhas='';itens.forEach(item=>{if(item.data.startsWith(mes)){let st=statusData(item.data);linhas+=`<tr><td>${esc(item.responsavel)}</td><td>${esc(item.contato)}</td><td>${esc(item.telefone)}</td><td>${esc(item.email)}</td><td>${esc(item.cnpj)}</td><td>${esc(item.empresa)}</td><td>${esc(item.tipoEmpresa)||'-'}</td><td>${moeda(item.valor)}</td><td>${esc(item.descricao)}</td><td>${formatarData(item.data)}</td><td>${esc(item.anexoNome||'-')}</td><td>${st[0]}</td></tr>`}});if(!linhas){alert('Nenhum registro encontrado.');return}let win=window.open('');win.document.write(`<html><head><title>Relatório Mensal</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:6px;font-size:12px;text-align:left}th{background:#ddd}</style></head><body><h2>Relatório Mensal - PCMSO</h2><table><thead><tr><th>Responsável</th><th>Contato</th><th>Telefone</th><th>E-mail</th><th>CNPJ</th><th>Empresa</th><th>Tipo da Empresa</th><th>Valor</th><th>Descrição</th><th>Vencimento</th><th>Anexo</th><th>Status</th></tr></thead><tbody>${linhas}</tbody></table></body></html>`);win.document.close();win.print()}
 
+cnpj.addEventListener('blur', preencherEmpresaPorCNPJ);
 busca.addEventListener('keyup', render);
 window.addEventListener('load', async () => {
   const usuarioSalvo = localStorage.getItem('usuario_pcmso');
@@ -516,6 +678,7 @@ window.addEventListener('load', async () => {
     usuarioInfo.textContent =
       `${usuarioLogado.nome} - ${usuarioLogado.perfil}`;
 
+    aplicarPermissoesUsuario();
     await carregarDados();
     return;
   }
