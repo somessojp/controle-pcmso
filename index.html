@@ -397,34 +397,68 @@ function esc(v){return String(v??'').replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&l
 
 async function add(){
   let arquivo = anexo.files[0];
+
   let obj = {
-  id: editandoId || '',
-  responsavel: String(usuarioLogado.perfil || '').toUpperCase() === 'ADM'
-    ? responsavel.value.trim()
-    : (usuarioLogado.consultorVinculado || usuarioLogado.vendedorVinculado || usuarioLogado.nome),
+    id: editandoId || '',
+    responsavel: String(usuarioLogado.perfil || '').toUpperCase() === 'ADM'
+      ? responsavel.value.trim()
+      : (usuarioLogado.consultorVinculado || usuarioLogado.vendedorVinculado || usuarioLogado.nome),
+    contato: contato.value.trim(),
+    telefone: telefone.value.trim(),
+    email: email.value.trim(),
+    cnpj: cnpj.value.trim(),
+    empresa: empresa.value.trim(),
+    tipoEmpresa: tipoEmpresa.value,
+    valor: valor.value,
+    descricao: descricao.value.trim(),
+    data: data.value,
+    linkAnexo: '',
+    anexoNome: ''
+  };
 
-  contato: contato.value.trim(),
-  telefone: telefone.value.trim(),
-  email: email.value.trim(),
-  cnpj: cnpj.value.trim(),
-  empresa: empresa.value.trim(),
-  tipoEmpresa: tipoEmpresa.value,
-  valor: valor.value,
-  descricao: descricao.value.trim(),
-  data: data.value,
+  for (let k of ['responsavel','contato','telefone','email','cnpj','empresa','tipoEmpresa','valor','descricao','data']) {
+    if (!obj[k]) {
+      alert('Preencha todos os campos.');
+      return;
+    }
+  }
 
-  linkAnexo: '',
-  anexoNome: ''
-};value.trim(), cnpj:cnpj.value.trim(), empresa:empresa.value.trim(), tipoEmpresa:tipoEmpresa.value, valor:valor.value.trim(), descricao:descricao.value.trim(), dataVencimento:data.value, linkAnexo:'', nomeAnexo:''};
-  for(let k of ['responsavel','contato','telefone','email','cnpj','empresa','tipoEmpresa','valor','descricao','dataVencimento']){if(!obj[k]){alert('Preencha todos os campos.');return}}
-  if(editandoId){ let atual=itens.find(x=>x.id===editandoId); obj.linkAnexo=atual?.linkAnexo||''; obj.nomeAnexo=atual?.anexoNome||''; }
-  btnAdicionar.disabled=true; msgSistema.textContent='Salvando...';
-  try{
-    if(arquivo){ const base64 = await lerArquivo(arquivo); obj.anexoBase64=base64; obj.nomeAnexo=arquivo.name; }
+  if (editandoId) {
+    let atual = itens.find(x => x.id === editandoId);
+    obj.linkAnexo = atual ? atual.linkAnexo || '' : '';
+    obj.anexoNome = atual ? atual.anexoNome || '' : '';
+  }
+
+  btnAdicionar.disabled = true;
+  msgSistema.textContent = 'Salvando...';
+
+  try {
+    if (arquivo) {
+      const base64 = await lerArquivo(arquivo);
+      obj.anexoBase64 = base64;
+      obj.nomeAnexo = arquivo.name;
+    }
+
     const r = await api('salvarPCMSO', obj);
-    if(!r.ok){alert(r.erro||'Erro ao salvar.');return}
-    editandoId=null; btnAdicionar.innerText='Adicionar'; btnCancelar.style.display='none'; limparCampos(); await carregarDados(); alert('Registro salvo com sucesso!');
-  }catch(e){alert('Erro ao salvar: '+e.message)}finally{btnAdicionar.disabled=false}
+
+    if (!r.ok) {
+      alert(r.erro || 'Erro ao salvar.');
+      return;
+    }
+
+    editandoId = null;
+    btnAdicionar.innerText = 'Adicionar';
+    btnCancelar.style.display = 'none';
+
+    limparCampos();
+    await carregarDados();
+
+    alert('Registro salvo com sucesso!');
+  } catch(e) {
+    alert('Erro ao salvar: ' + e.message);
+  } finally {
+    btnAdicionar.disabled = false;
+  }
 }
 function lerArquivo(file){return new Promise((resolve,reject)=>{let r=new FileReader();r.onload=e=>resolve(e.target.result);r.onerror=reject;r.readAsDataURL(file)})}
 
