@@ -594,22 +594,23 @@ async function add(){
   let arquivo = anexo.files[0];
 
   let obj = {
-    id: editandoId || '',
-    responsavel: String(usuarioLogado.perfil || '').toUpperCase() === 'ADM'
-      ? responsavel.value.trim()
-      : (usuarioLogado.consultorVinculado || usuarioLogado.vendedorVinculado || usuarioLogado.nome),
-    contato: contato.value.trim(),
-    telefone: telefone.value.trim(),
-    email: email.value.trim(),
-    cnpj: cnpj.value.trim(),
-    empresa: empresa.value.trim(),
-    tipoEmpresa: tipoEmpresa.value,
-    valor: valor.value,
-    descricao: descricao.value.trim(),
-    data: data.value,
-    linkAnexo: '',
-    anexoNome: ''
-  };
+  id: editandoId || '',
+  responsavel: responsavel.value.trim(),
+  contato: contato.value.trim(),
+  telefone: telefone.value.trim(),
+  email: email.value.trim(),
+  cnpj: cnpj.value.trim(),
+  empresa: empresa.value.trim(),
+  tipoEmpresa: tipoEmpresa.value,
+  valor: valor.value,
+  descricao: descricao.value.trim(),
+
+  // 👇 ESSA É A CORRETA
+  dataVencimento: data.value,
+
+  linkAnexo: '',
+  nomeAnexo: ''
+};
 
   for (let k of ['responsavel','contato','telefone','email','cnpj','empresa','tipoEmpresa','valor','descricao','data']) {
     if (!obj[k]) {
