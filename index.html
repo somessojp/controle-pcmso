@@ -324,24 +324,82 @@ function moeda(v){return Number(String(v||0).replace(',','.')).toLocaleString('p
 function limparCampos(){['responsavel','contato','telefone','email','cnpj','empresa','tipoEmpresa','valor','descricao','data','anexo'].forEach(id=>document.getElementById(id).value='')}
 
 function render(){
+
   tb.innerHTML='';
+
   let busca = buscaEl().value.toLowerCase().trim();
-  let vencidos=0, alertas=0, hojeQtd=0;
-  itens.sort((a,b)=>new Date(a.data+'T00:00:00')-new Date(b.data+'T00:00:00')).forEach((item,index)=>{
-    let st=statusData(item.data);
-    let texto=`${item.responsavel} ${item.contato} ${item.telefone} ${item.email} ${item.cnpj} ${item.empresa} ${item.tipoEmpresa} ${item.valor} ${item.descricao} ${item.data} ${st[0]}`.toLowerCase();
-    if(busca && !busca.split(' ').filter(Boolean).every(p=>texto.includes(p))) return;
-    if(st[1]==='vencido') vencidos++; if(st[1]==='alerta') alertas++; if(st[1]==='hoje') hojeQtd++;
-    tb.innerHTML += `<tr class="${st[1]}"><td>${esc(item.responsavel)}</td><td>${esc(item.contato)}</td><td>${esc(item.telefone)}</td><td>${esc(item.email)}</td><td>${esc(item.cnpj)}</td><td>${esc(item.empresa)}</td><td>${esc(item.tipoEmpresa)||'-'}</td><td>${moeda(item.valor)}</td><td>${esc(item.descricao)}</td><td>${formatarData(item.data)}</td><td>${item.linkAnexo?`<a href="${item.linkAnexo}" target="_blank">📎 ${esc(item.anexoNome||'Anexo')}</a>`:'-'}</td><td>${st[0]}</td><td><button onclick="editar(${index})">Editar</button> <button onclick="del('${item.id}')">Excluir</button></td></tr>`;
-  });
-  cv.innerText=vencidos; ca.innerText=alertas; ch.innerText=hojeQtd; ct.innerText=itens.length;
+
+  let visiveis = itens;
+
+  if(usuarioLogado && String(usuarioLogado.perfil || '').toUpperCase() !== 'ADM'){
+
+    const meuNome = String(usuarioLogado.nome || '').toLowerCase().trim();
+
+    const meuVinculo = String(
+      usuarioLogado.consultorVinculado ||
+      usuarioLogado.vendedorVinculado ||
+      usuarioLogado.nome ||
+      ''
+    ).toLowerCase().trim();
+
+    visiveis = itens.filter(item=>{
+      const resp = String(item.responsavel || '').toLowerCase().trim();
+      return resp === meuNome || resp === meuVinculo;
+    });
+
+  }
+
+  let vencidos=0,
+      alertas=0,
+      hojeQtd=0;
+
+  visiveis
+    .sort((a,b)=>new Date(a.data+'T00:00:00')-new Date(b.data+'T00:00:00'))
+    .forEach((item,index)=>{
+
+      let st=statusData(item.data);
+
+      let texto=`${item.responsavel} ${item.contato} ${item.telefone} ${item.email} ${item.cnpj} ${item.empresa} ${item.tipoEmpresa} ${item.valor} ${item.descricao} ${item.data} ${st[0]}`.toLowerCase();
+
+      if(busca && !busca.split(' ').filter(Boolean).every(p=>texto.includes(p))) return;
+
+      if(st[1]==='vencido') vencidos++;
+      if(st[1]==='alerta') alertas++;
+      if(st[1]==='hoje') hojeQtd++;
+
+      tb.innerHTML += `<tr class="${st[1]}">
+<td>${esc(item.responsavel)}</td>
+<td>${esc(item.contato)}</td>
+<td>${esc(item.telefone)}</td>
+<td>${esc(item.email)}</td>
+<td>${esc(item.cnpj)}</td>
+<td>${esc(item.empresa)}</td>
+<td>${esc(item.tipoEmpresa)||'-'}</td>
+<td>${moeda(item.valor)}</td>
+<td>${esc(item.descricao)}</td>
+<td>${formatarData(item.data)}</td>
+<td>${item.linkAnexo?`<a href="${item.linkAnexo}" target="_blank">📎 ${esc(item.anexoNome||'Anexo')}</a>`:'-'}</td>
+<td>${st[0]}</td>
+<td>
+<button onclick="editar(${index})">Editar</button>
+<button onclick="del('${item.id}')">Excluir</button>
+</td>
+</tr>`;
+    });
+
+  cv.innerText=vencidos;
+  ca.innerText=alertas;
+  ch.innerText=hojeQtd;
+  ct.innerText=visiveis.length;
 }
 function buscaEl(){return document.getElementById('busca')}
 function esc(v){return String(v??'').replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
 
 async function add(){
   let arquivo = anexo.files[0];
-  let obj = {id:editandoId||'', responsavel:responsavel.value.trim(), contato:contato.value.trim(), telefone:telefone.value.trim(), email:email.value.trim(), cnpj:cnpj.value.trim(), empresa:empresa.value.trim(), tipoEmpresa:tipoEmpresa.value, valor:valor.value.trim(), descricao:descricao.value.trim(), dataVencimento:data.value, linkAnexo:'', nomeAnexo:''};
+  let obj = {id:editandoId||'', rresponsavel: String(usuarioLogado.perfil || '').toUpperCase() === 'ADM'
+  ? responsavel.value.trim()
+  : (usuarioLogado.consultorVinculado || usuarioLogado.vendedorVinculado || usuarioLogado.nome),, contato:contato.value.trim(), telefone:telefone.value.trim(), email:email.value.trim(), cnpj:cnpj.value.trim(), empresa:empresa.value.trim(), tipoEmpresa:tipoEmpresa.value, valor:valor.value.trim(), descricao:descricao.value.trim(), dataVencimento:data.value, linkAnexo:'', nomeAnexo:''};
   for(let k of ['responsavel','contato','telefone','email','cnpj','empresa','tipoEmpresa','valor','descricao','dataVencimento']){if(!obj[k]){alert('Preencha todos os campos.');return}}
   if(editandoId){ let atual=itens.find(x=>x.id===editandoId); obj.linkAnexo=atual?.linkAnexo||''; obj.nomeAnexo=atual?.anexoNome||''; }
   btnAdicionar.disabled=true; msgSistema.textContent='Salvando...';
