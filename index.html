@@ -376,7 +376,7 @@ function statusData(data){
 function formatarData(data){if(!data)return '-';let p=String(data).split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:data}
 function moeda(v){return Number(String(v||0).replace(',','.')).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
 function limparCampos(){
-  ['responsavel','contato','telefone','email','cnpj','empresa','tipoEmpresa','valor','descricao','data','anexo'].forEach(id=>document.getElementById(id).value='');
+  ['responsavel','contato','telefone','email','cnpj','empresa','tipoEmpresa','valor','descricao','dataVencimento','anexo'].forEach(id=>document.getElementById(id).value='');
   aplicarPermissoesUsuario();
 }
 
