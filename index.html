@@ -376,7 +376,7 @@ function statusData(data){
 function formatarData(data){if(!data)return '-';let p=String(data).split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:data}
 function moeda(v){return Number(String(v||0).replace(',','.')).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
 function limparCampos(){
-  ['responsavel','contato','telefone','email','cnpj','empresa','tipoEmpresa','valor','descricao','dataVencimento','anexo'].forEach(id=>document.getElementById(id).value='');
+  ['responsavel','contato','telefone','email','cnpj','empresa','tipoEmpresa','valor','descricao','data','anexo'].forEach(id=>document.getElementById(id).value='');
   aplicarPermissoesUsuario();
 }
 
@@ -594,27 +594,26 @@ async function add(){
   let arquivo = anexo.files[0];
 
   let obj = {
-  id: editandoId || '',
-  responsavel: responsavel.value.trim(),
-  contato: contato.value.trim(),
-  telefone: telefone.value.trim(),
-  email: email.value.trim(),
-  cnpj: cnpj.value.trim(),
-  empresa: empresa.value.trim(),
-  tipoEmpresa: tipoEmpresa.value,
-  valor: valor.value,
-  descricao: descricao.value.trim(),
+    id: editandoId || '',
+    responsavel: isAdm()
+      ? responsavel.value.trim()
+      : responsavelUsuario(),
+    contato: contato.value.trim(),
+    telefone: telefone.value.trim(),
+    email: email.value.trim(),
+    cnpj: cnpj.value.trim(),
+    empresa: empresa.value.trim(),
+    tipoEmpresa: tipoEmpresa.value,
+    valor: valor.value,
+    descricao: descricao.value.trim(),
+    dataVencimento: data.value,
+    linkAnexo: '',
+    nomeAnexo: ''
+  };
 
-  // 👇 ESSA É A CORRETA
-  dataVencimento: data.value,
-
-  linkAnexo: '',
-  nomeAnexo: ''
-};
-
-  for (let k of ['responsavel','contato','telefone','email','cnpj','empresa','tipoEmpresa','valor','descricao','data']) {
+  for (let k of ['responsavel','contato','telefone','email','cnpj','empresa','tipoEmpresa','valor','descricao','dataVencimento']) {
     if (!obj[k]) {
-      alert('Preencha todos os campos.');
+      alert('Preencha todos os campos. Campo faltando: ' + k);
       return;
     }
   }
@@ -623,6 +622,7 @@ async function add(){
     let atual = itens.find(x => x.id === editandoId);
     obj.linkAnexo = atual ? atual.linkAnexo || '' : '';
     obj.anexoNome = atual ? atual.anexoNome || '' : '';
+    obj.nomeAnexo = obj.anexoNome;
   }
 
   btnAdicionar.disabled = true;
