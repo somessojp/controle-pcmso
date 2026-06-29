@@ -212,7 +212,7 @@ h2,h3{
 </select>
 <input id="valor" type="number" placeholder="Valor">
 <input id="descricao" placeholder="Descrição">
-<input id="anexo" type="file">
+<input id="anexo" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg">
 <input id="data" type="date">
 </div>
 <br>
@@ -275,9 +275,13 @@ let editandoId = null;
 let usuarioLogado = null;
 
 async function api(acao, dados={}){
-  const resp = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({acao, ...dados})});
+  const resp = await fetch(API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({acao, ...dados})
+  });
   const txt = await resp.text();
-  try{return JSON.parse(txt)}catch(e){console.error(txt);throw new Error('Resposta inválida da API')}
+  try{return JSON.parse(txt)}catch(e){console.error('Resposta inválida da API:', txt);throw new Error('Resposta inválida da API')}
 }
 
 async function fazerLogin(){
@@ -385,49 +389,34 @@ function render(){
   tb.innerHTML='';
 
   let busca = buscaEl().value.toLowerCase().trim();
+  let visiveis = [...itens];
 
-  let visiveis = itens;
-
-  if(usuarioLogado && String(usuarioLogado.perfil || '').toUpperCase() !== 'ADM'){
-
+  if(usuarioLogado && !isAdm()){
     const meuNome = String(usuarioLogado.nome || '').toLowerCase().trim();
+    const meuVinculo = String(responsavelUsuario()).toLowerCase().trim();
 
-    const meuVinculo = String(
-      usuarioLogado.consultorVinculado ||
-      usuarioLogado.vendedorVinculado ||
-      usuarioLogado.nome ||
-      ''
-    ).toLowerCase().trim();
-
-    visiveis = itens.filter(item=>{
+    visiveis = visiveis.filter(item=>{
       const resp = String(item.responsavel || '').toLowerCase().trim();
       return resp === meuNome || resp === meuVinculo;
     });
-
   }
-  if(usuarioLogado && String(usuarioLogado.perfil || '').toUpperCase() === 'ADM'){
-  const filtroResp =
-    String(document.getElementById('filtroResponsavel')?.value || '')
-    .toLowerCase()
-    .trim();
 
-  if(filtroResp){
-    visiveis = visiveis.filter(item =>
-      String(item.responsavel || '').toLowerCase().trim() === filtroResp
-    );
+  if(usuarioLogado && isAdm()){
+    const filtroResp = String(document.getElementById('filtroResponsavel')?.value || '').toLowerCase().trim();
+
+    if(filtroResp){
+      visiveis = visiveis.filter(item =>
+        String(item.responsavel || '').toLowerCase().trim() === filtroResp
+      );
+    }
   }
-}
 
-  let vencidos=0,
-      alertas=0,
-      hojeQtd=0;
+  let vencidos=0, alertas=0, hojeQtd=0;
 
   visiveis
     .sort((a,b)=>new Date(a.data+'T00:00:00')-new Date(b.data+'T00:00:00'))
-    .forEach((item,index)=>{
-
+    .forEach((item)=>{
       let st=statusData(item.data);
-
       let texto=`${item.responsavel} ${item.contato} ${item.telefone} ${item.email} ${item.cnpj} ${item.empresa} ${item.tipoEmpresa} ${item.valor} ${item.descricao} ${item.data} ${st[0]}`.toLowerCase();
 
       if(busca && !busca.split(' ').filter(Boolean).every(p=>texto.includes(p))) return;
@@ -450,7 +439,7 @@ function render(){
 <td>${item.linkAnexo?`<a href="${item.linkAnexo}" target="_blank">📎 ${esc(item.anexoNome||'Anexo')}</a>`:'-'}</td>
 <td>${st[0]}</td>
 <td>
-<button onclick="editar(${index})">Editar</button>
+<button onclick="editarPorId('${item.id}')">Editar</button>
 <button onclick="del('${item.id}')">Excluir</button>
 </td>
 </tr>`;
@@ -473,30 +462,61 @@ function isAdm(){
 }
 
 function responsavelUsuario(){
-  return usuarioLogado
-    ? (usuarioLogado.consultorVinculado || usuarioLogado.vendedorVinculado || usuarioLogado.nome || '')
-    : '';
+  if(!usuarioLogado) return '';
+
+  const vinculo = String(
+    usuarioLogado.consultorVinculado ||
+    usuarioLogado.vendedorVinculado ||
+    usuarioLogado.VendedorVinculado ||
+    usuarioLogado.vendedorvinculado ||
+    ''
+  ).trim();
+
+  if(vinculo) return vinculo;
+
+  const nome = String(usuarioLogado.nome || '').trim();
+
+  if(nome.toLowerCase() === 'tamila' || nome.toLowerCase() === 'tamilla'){
+    return 'Tamilla Pereira';
+  }
+
+  return nome;
 }
   
 function aplicarPermissoesUsuario(){
   if(!usuarioLogado) return;
 
+  const respUsuario = responsavelUsuario();
+  const filtroResp = document.getElementById('filtroResponsavel');
+
   if(!isAdm()){
-    responsavel.value = responsavelUsuario();
+    responsavel.innerHTML = `<option value="${respUsuario}">${respUsuario}</option>`;
+    responsavel.value = respUsuario;
     responsavel.disabled = true;
 
-    const filtroResp = document.getElementById('filtroResponsavel');
     if(filtroResp){
       filtroResp.style.display = 'none';
       filtroResp.value = '';
     }
-  } else {
-    responsavel.disabled = false;
 
-    const filtroResp = document.getElementById('filtroResponsavel');
-    if(filtroResp){
-      filtroResp.style.display = 'block';
-    }
+    return;
+  }
+
+  responsavel.innerHTML = `
+    <option value="">Selecione o responsável</option>
+    <option value="Tassio Borges">Tassio Borges</option>
+    <option value="Tamilla Pereira">Tamilla Pereira</option>
+  `;
+  responsavel.disabled = false;
+
+  if(filtroResp){
+    filtroResp.innerHTML = `
+      <option value="">Todos os responsáveis</option>
+      <option value="Tassio Borges">Tassio Borges</option>
+      <option value="Tamilla Pereira">Tamilla Pereira</option>
+    `;
+    filtroResp.value = '';
+    filtroResp.style.display = '';
   }
 }
 
@@ -668,25 +688,33 @@ function pdf(){let mes=mespdf.value;if(!mes){alert('Escolha um mês.');return}le
 cnpj.addEventListener('blur', preencherEmpresaPorCNPJ);
 busca.addEventListener('keyup', render);
 window.addEventListener('load', async () => {
-  const usuarioSalvo = localStorage.getItem('usuario_pcmso');
-
-  if (usuarioSalvo) {
-    usuarioLogado = JSON.parse(usuarioSalvo);
-
-    loginBox.style.display = 'none';
-    appBox.style.display = 'block';
-
-    usuarioInfo.textContent =
-      `${usuarioLogado.nome} - ${usuarioLogado.perfil}`;
-
-    aplicarPermissoesUsuario();
-    await carregarDados();
-    return;
-  }
-
   const email = localStorage.getItem('usuario_pcmso_email') || '';
-  if (email) {
+
+  if(email){
     emailLogin.value = email;
+
+    try{
+      const r = await api('login', {email});
+
+      if(r.ok){
+        usuarioLogado = r.usuario;
+        localStorage.setItem('usuario_pcmso', JSON.stringify(r.usuario));
+
+        loginBox.style.display = 'none';
+        appBox.style.display = 'block';
+
+        usuarioInfo.textContent = `${usuarioLogado.nome} - ${usuarioLogado.perfil}`;
+
+        aplicarPermissoesUsuario();
+        await carregarDados();
+        return;
+      }
+
+      localStorage.removeItem('usuario_pcmso');
+      localStorage.removeItem('usuario_pcmso_email');
+    }catch(e){
+      console.warn('Não foi possível restaurar login automaticamente:', e.message);
+    }
   }
 });
 </script>
