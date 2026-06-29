@@ -477,10 +477,7 @@ function responsavelUsuario(){
     ? (usuarioLogado.consultorVinculado || usuarioLogado.vendedorVinculado || usuarioLogado.nome || '')
     : '';
 }
-  console.log(usuarioLogado);
-console.log('consultorVinculado:', usuarioLogado.consultorVinculado);
-console.log('responsável:', responsavelUsuario());
-
+  
 function aplicarPermissoesUsuario(){
   if(!usuarioLogado) return;
 
