@@ -334,7 +334,7 @@ async function carregarDados(){
   try{
     const r = await api('listar');
     itens = (r.pcmsos || []).map(normalizarItem);
-    carregarEmpresasCadastradas();
+    carregarEmpresasCadastradas(r.empresas || []);
     aplicarPermissoesUsuario();
     render();
     msgSistema.textContent='Dados atualizados.';
@@ -520,8 +520,17 @@ function aplicarPermissoesUsuario(){
   }
 }
 
-function carregarEmpresasCadastradas(){
+function carregarEmpresasCadastradas(empresasServidor=[]){
   const locais = JSON.parse(localStorage.getItem('empresas_pcmso') || '[]');
+
+  const vindasDoServidor = empresasServidor.map(e => ({
+    cnpj: cnpjLimpo(e.CNPJ || e.cnpj || ''),
+    empresa: e.Empresa || e.empresa || '',
+    contato: e.Contato || e.contato || '',
+    telefone: e.Telefone || e.telefone || '',
+    email: e['E-mail'] || e.Email || e.email || '',
+    responsavelEmpresa: e['Responsável pela Empresa'] || e.responsavelEmpresa || e['Responsável Empresa'] || ''
+  }));
 
   const vindasDosRegistros = itens
     .filter(i => i.cnpj)
@@ -530,20 +539,22 @@ function carregarEmpresasCadastradas(){
       empresa: i.empresa || '',
       contato: i.contato || '',
       telefone: i.telefone || '',
-      email: i.email || ''
+      email: i.email || '',
+      responsavelEmpresa: ''
     }));
 
   const mapa = {};
 
-  [...vindasDosRegistros, ...locais].forEach(e => {
+  [...vindasDosRegistros, ...locais, ...vindasDoServidor].forEach(e => {
     const c = cnpjLimpo(e.cnpj);
     if(c){
       mapa[c] = {
         cnpj: c,
-        empresa: e.empresa || '',
-        contato: e.contato || '',
-        telefone: e.telefone || '',
-        email: e.email || ''
+        empresa: e.empresa || mapa[c]?.empresa || '',
+        contato: e.contato || mapa[c]?.contato || '',
+        telefone: e.telefone || mapa[c]?.telefone || '',
+        email: e.email || mapa[c]?.email || '',
+        responsavelEmpresa: e.responsavelEmpresa || mapa[c]?.responsavelEmpresa || ''
       };
     }
   });
@@ -565,7 +576,8 @@ async function salvarCadastroEmpresa(){
     empresa: cadEmpresa.value.trim(),
     contato: cadContato.value.trim(),
     telefone: cadTelefone.value.trim(),
-    email: cadEmail.value.trim()
+    email: cadEmail.value.trim(),
+    responsavelEmpresa: ''
   };
 
   if(obj.cnpj.length !== 14){
@@ -573,28 +585,34 @@ async function salvarCadastroEmpresa(){
     return;
   }
 
-  for(let k in obj){
+  for(let k of ['cnpj','empresa','contato','telefone','email']){
     if(!obj[k]){
       alert('Preencha todos os campos da empresa.');
       return;
     }
   }
 
-  const locais = JSON.parse(localStorage.getItem('empresas_pcmso') || '[]');
-  const semDuplicar = locais.filter(e => cnpjLimpo(e.cnpj) !== obj.cnpj);
-  semDuplicar.push(obj);
-  localStorage.setItem('empresas_pcmso', JSON.stringify(semDuplicar));
+  try{
+    const r = await api('salvarEmpresa', obj);
 
-  carregarEmpresasCadastradas();
+    if(!r.ok){
+      alert(r.erro || 'Erro ao salvar empresa.');
+      return;
+    }
 
-  cadCnpj.value = '';
-  cadEmpresa.value = '';
-  cadContato.value = '';
-  cadTelefone.value = '';
-  cadEmail.value = '';
+    cadCnpj.value = '';
+    cadEmpresa.value = '';
+    cadContato.value = '';
+    cadTelefone.value = '';
+    cadEmail.value = '';
 
-  fecharCadastroEmpresas();
-  alert('Empresa cadastrada com sucesso!');
+    fecharCadastroEmpresas();
+    await carregarDados();
+
+    alert('Empresa cadastrada com sucesso!');
+  }catch(e){
+    alert('Erro ao salvar empresa: ' + e.message);
+  }
 }
 
 function preencherEmpresaPorCNPJ(){
