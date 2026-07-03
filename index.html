@@ -306,6 +306,7 @@ async function fazerLogin(){
     aplicarPermissoesUsuario();
 
     localStorage.setItem('usuario_pcmso_email', email);
+    localStorage.setItem('usuario_somesso_email', email);
 
     localStorage.setItem(
       'usuario_pcmso',
@@ -529,7 +530,7 @@ function carregarEmpresasCadastradas(empresasServidor=[]){
     contato: e.Contato || e.contato || '',
     telefone: e.Telefone || e.telefone || '',
     email: e['E-mail'] || e.Email || e.email || '',
-    responsavelEmpresa: e['Responsável pela Empresa'] || e.responsavelEmpresa || e['Responsável Empresa'] || ''
+    responsavelEmpresa: ''
   }));
 
   const vindasDosRegistros = itens
@@ -703,33 +704,32 @@ async function del(id){if(!confirm('Deseja excluir este registro?'))return; msgS
 function excel(){let htmlExcel=`<html><head><meta charset="UTF-8"></head><body>${tab.outerHTML}</body></html>`;let blob=new Blob([htmlExcel],{type:'application/vnd.ms-excel'});let link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='controle_vencimento_pcmsο.xls';document.body.appendChild(link);link.click();document.body.removeChild(link)}
 function pdf(){let mes=mespdf.value;if(!mes){alert('Escolha um mês.');return}let linhas='';itens.forEach(item=>{if(item.data.startsWith(mes)){let st=statusData(item.data);linhas+=`<tr><td>${esc(item.responsavel)}</td><td>${esc(item.contato)}</td><td>${esc(item.telefone)}</td><td>${esc(item.email)}</td><td>${esc(item.cnpj)}</td><td>${esc(item.empresa)}</td><td>${esc(item.tipoEmpresa)||'-'}</td><td>${moeda(item.valor)}</td><td>${esc(item.descricao)}</td><td>${formatarData(item.data)}</td><td>${esc(item.anexoNome||'-')}</td><td>${st[0]}</td></tr>`}});if(!linhas){alert('Nenhum registro encontrado.');return}let win=window.open('');win.document.write(`<html><head><title>Relatório Mensal</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:6px;font-size:12px;text-align:left}th{background:#ddd}</style></head><body><h2>Relatório Mensal - PCMSO</h2><table><thead><tr><th>Responsável</th><th>Contato</th><th>Telefone</th><th>E-mail</th><th>CNPJ</th><th>Empresa</th><th>Tipo da Empresa</th><th>Valor</th><th>Descrição</th><th>Vencimento</th><th>Anexo</th><th>Status</th></tr></thead><tbody>${linhas}</tbody></table></body></html>`);win.document.close();win.print()}
 
+cnpj.addEventListener('input', preencherEmpresaPorCNPJ);
+cnpj.addEventListener('change', preencherEmpresaPorCNPJ);
 cnpj.addEventListener('blur', preencherEmpresaPorCNPJ);
 busca.addEventListener('keyup', render);
 window.addEventListener('load', async () => {
-  const email = localStorage.getItem('usuario_pcmso_email') || '';
+  const email = localStorage.getItem('usuario_pcmso_email') || localStorage.getItem('usuario_somesso_email') || '';
 
   if(email){
     emailLogin.value = email;
-
     try{
       const r = await api('login', {email});
-
       if(r.ok){
         usuarioLogado = r.usuario;
         localStorage.setItem('usuario_pcmso', JSON.stringify(r.usuario));
+        localStorage.setItem('usuario_pcmso_email', email);
+        localStorage.setItem('usuario_somesso', JSON.stringify(r.usuario));
+        localStorage.setItem('usuario_somesso_email', email);
 
         loginBox.style.display = 'none';
         appBox.style.display = 'block';
 
         usuarioInfo.textContent = `${usuarioLogado.nome} - ${usuarioLogado.perfil}`;
-
         aplicarPermissoesUsuario();
         await carregarDados();
         return;
       }
-
-      localStorage.removeItem('usuario_pcmso');
-      localStorage.removeItem('usuario_pcmso_email');
     }catch(e){
       console.warn('Não foi possível restaurar login automaticamente:', e.message);
     }
