@@ -305,13 +305,13 @@ async function fazerLogin(){
     usuarioLogado = r.usuario;
     aplicarPermissoesUsuario();
 
+    localStorage.setItem('portal_usuario_email', email);
     localStorage.setItem('usuario_pcmso_email', email);
     localStorage.setItem('usuario_somesso_email', email);
 
-    localStorage.setItem(
-      'usuario_pcmso',
-      JSON.stringify(r.usuario)
-    );
+    localStorage.setItem('portal_usuario', JSON.stringify(r.usuario));
+    localStorage.setItem('usuario_pcmso', JSON.stringify(r.usuario));
+    localStorage.setItem('usuario_somesso', JSON.stringify(r.usuario));
 
     loginBox.style.display='none';
     appBox.style.display='block';
@@ -328,7 +328,17 @@ async function fazerLogin(){
   }
 }
 
-function sair(){localStorage.removeItem('usuario_pcmso_email');localStorage.removeItem('usuario_pcmso');location.reload()}
+function sair(){
+  localStorage.removeItem('portal_usuario');
+  localStorage.removeItem('portal_usuario_email');
+  localStorage.removeItem('somesso_usuario');
+  localStorage.removeItem('somesso_usuario_email');
+  localStorage.removeItem('usuario_somesso');
+  localStorage.removeItem('usuario_somesso_email');
+  localStorage.removeItem('usuario_pcmso');
+  localStorage.removeItem('usuario_pcmso_email');
+  location.reload();
+}
 
 async function carregarDados(){
   msgSistema.textContent='Carregando dados...';
@@ -709,30 +719,50 @@ cnpj.addEventListener('change', preencherEmpresaPorCNPJ);
 cnpj.addEventListener('blur', preencherEmpresaPorCNPJ);
 busca.addEventListener('keyup', render);
 window.addEventListener('load', async () => {
-  const email = localStorage.getItem('usuario_pcmso_email') || localStorage.getItem('usuario_somesso_email') || '';
+  const params = new URLSearchParams(window.location.search);
 
-  if(email){
-    emailLogin.value = email;
+  const usuarioSalvo =
+    localStorage.getItem('portal_usuario') ||
+    localStorage.getItem('somesso_usuario') ||
+    localStorage.getItem('usuario_somesso') ||
+    localStorage.getItem('usuario_pcmso');
+
+  const emailSalvo =
+    localStorage.getItem('portal_usuario_email') ||
+    localStorage.getItem('somesso_usuario_email') ||
+    localStorage.getItem('usuario_somesso_email') ||
+    localStorage.getItem('usuario_pcmso_email') ||
+    params.get('email') ||
+    '';
+
+  if(usuarioSalvo){
     try{
-      const r = await api('login', {email});
-      if(r.ok){
-        usuarioLogado = r.usuario;
-        localStorage.setItem('usuario_pcmso', JSON.stringify(r.usuario));
-        localStorage.setItem('usuario_pcmso_email', email);
-        localStorage.setItem('usuario_somesso', JSON.stringify(r.usuario));
-        localStorage.setItem('usuario_somesso_email', email);
+      usuarioLogado = JSON.parse(usuarioSalvo);
 
-        loginBox.style.display = 'none';
-        appBox.style.display = 'block';
-
-        usuarioInfo.textContent = `${usuarioLogado.nome} - ${usuarioLogado.perfil}`;
-        aplicarPermissoesUsuario();
-        await carregarDados();
-        return;
+      if(emailSalvo){
+        localStorage.setItem('portal_usuario_email', emailSalvo);
+        localStorage.setItem('usuario_pcmso_email', emailSalvo);
+        localStorage.setItem('usuario_somesso_email', emailSalvo);
       }
+
+      localStorage.setItem('portal_usuario', JSON.stringify(usuarioLogado));
+      localStorage.setItem('usuario_pcmso', JSON.stringify(usuarioLogado));
+      localStorage.setItem('usuario_somesso', JSON.stringify(usuarioLogado));
+
+      loginBox.style.display = 'none';
+      appBox.style.display = 'block';
+
+      usuarioInfo.textContent = `${usuarioLogado.nome || ''} - ${usuarioLogado.perfil || ''}`;
+      aplicarPermissoesUsuario();
+      await carregarDados();
+      return;
     }catch(e){
-      console.warn('Não foi possível restaurar login automaticamente:', e.message);
+      console.warn('Sessão salva inválida:', e.message);
     }
+  }
+
+  if(emailSalvo){
+    emailLogin.value = emailSalvo;
   }
 });
 </script>
