@@ -191,8 +191,7 @@ h2,h3{
 
 <div class="box">
 <h2>Controle de vencimento de PCMSO</h2>
-<button type="button" onclick="abrirCadastroEmpresas()">Cadastro de Empresas</button>
-<br><br>
+
 <div class="grid">
 <select id="responsavel">
   <option value="">Selecione o responsável</option>
@@ -248,27 +247,9 @@ h2,h3{
 </table>
 </div>
 </div>
-
-
-<div id="modalEmpresas" class="modal">
-  <div class="modal-content">
-    <h3>Cadastro de Empresas</h3>
-    <div class="grid">
-      <input id="cadCnpj" placeholder="CNPJ">
-      <input id="cadEmpresa" placeholder="Empresa">
-      <input id="cadContato" placeholder="Contato">
-      <input id="cadTelefone" placeholder="Telefone">
-      <input id="cadEmail" placeholder="E-mail">
-    </div>
-    <br>
-    <button type="button" onclick="salvarCadastroEmpresa()">Salvar</button>
-    <button type="button" onclick="fecharCadastroEmpresas()" style="background:#777">Fechar</button>
-    <p class="small">Após salvar, ao preencher o CNPJ no formulário principal, os dados serão carregados automaticamente.</p>
-  </div>
-</div>
-
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbwFK_2-4Ni6HcIDxh6rnYMOAjAiDds23DOPzi4prqdY4FCDCb4692MGfQTLuLNSq4lVVQ/exec';
+const PORTAL_API_URL = 'https://script.google.com/macros/s/AKfycbyMSNie2VlxV25H-3MpvENoBZO6IdF1QByYSpWOl5yd0vAAKQhyXiMuJaqNo42Kc_nX/exec';
 let itens = [];
 let empresasCadastradas = [];
 let editandoId = null;
@@ -305,13 +286,13 @@ async function fazerLogin(){
     usuarioLogado = r.usuario;
     aplicarPermissoesUsuario();
 
-    localStorage.setItem('portal_usuario_email', email);
     localStorage.setItem('usuario_pcmso_email', email);
     localStorage.setItem('usuario_somesso_email', email);
 
-    localStorage.setItem('portal_usuario', JSON.stringify(r.usuario));
-    localStorage.setItem('usuario_pcmso', JSON.stringify(r.usuario));
-    localStorage.setItem('usuario_somesso', JSON.stringify(r.usuario));
+    localStorage.setItem(
+      'usuario_pcmso',
+      JSON.stringify(r.usuario)
+    );
 
     loginBox.style.display='none';
     appBox.style.display='block';
@@ -328,16 +309,20 @@ async function fazerLogin(){
   }
 }
 
-function sair(){
-  localStorage.removeItem('portal_usuario');
-  localStorage.removeItem('portal_usuario_email');
-  localStorage.removeItem('somesso_usuario');
-  localStorage.removeItem('somesso_usuario_email');
-  localStorage.removeItem('usuario_somesso');
-  localStorage.removeItem('usuario_somesso_email');
-  localStorage.removeItem('usuario_pcmso');
-  localStorage.removeItem('usuario_pcmso_email');
-  location.reload();
+function sair(){['portal_usuario','portal_usuario_email','somesso_usuario','somesso_usuario_email','usuario_pcmso','usuario_pcmso_email','usuario_gestao','usuario_gestao_email','usuario_relatorio','usuario_relatorio_email','usuario_metas','usuario_metas_email'].forEach(k=>localStorage.removeItem(k));location.reload()}
+
+
+async function apiPortal(acao,dados={}){
+  const resp = await fetch(PORTAL_API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({acao,...dados})});
+  const txt = await resp.text();
+  try{return JSON.parse(txt)}catch(e){return {ok:false,empresas:[]}}
+}
+async function carregarEmpresasDoPortal(){
+  try{
+    const r = await apiPortal('listarEmpresas');
+    if(r && (r.empresas || r.Empresas)) return r.empresas || r.Empresas || [];
+  }catch(e){}
+  try{return JSON.parse(localStorage.getItem('portal_empresas') || '[]')}catch(e){return []}
 }
 
 async function carregarDados(){
@@ -345,7 +330,7 @@ async function carregarDados(){
   try{
     const r = await api('listar');
     itens = (r.pcmsos || []).map(normalizarItem);
-    carregarEmpresasCadastradas(r.empresas || []);
+    carregarEmpresasCadastradas([...(r.empresas || []), ...(await carregarEmpresasDoPortal())]);
     aplicarPermissoesUsuario();
     render();
     msgSistema.textContent='Dados atualizados.';
@@ -720,50 +705,21 @@ cnpj.addEventListener('blur', preencherEmpresaPorCNPJ);
 busca.addEventListener('keyup', render);
 window.addEventListener('load', async () => {
   const params = new URLSearchParams(window.location.search);
-
-  const usuarioSalvo =
-    localStorage.getItem('portal_usuario') ||
-    localStorage.getItem('somesso_usuario') ||
-    localStorage.getItem('usuario_somesso') ||
-    localStorage.getItem('usuario_pcmso');
-
-  const emailSalvo =
-    localStorage.getItem('portal_usuario_email') ||
-    localStorage.getItem('somesso_usuario_email') ||
-    localStorage.getItem('usuario_somesso_email') ||
-    localStorage.getItem('usuario_pcmso_email') ||
-    params.get('email') ||
-    '';
-
-  if(usuarioSalvo){
-    try{
-      usuarioLogado = JSON.parse(usuarioSalvo);
-
-      if(emailSalvo){
-        localStorage.setItem('portal_usuario_email', emailSalvo);
-        localStorage.setItem('usuario_pcmso_email', emailSalvo);
-        localStorage.setItem('usuario_somesso_email', emailSalvo);
-      }
-
-      localStorage.setItem('portal_usuario', JSON.stringify(usuarioLogado));
-      localStorage.setItem('usuario_pcmso', JSON.stringify(usuarioLogado));
-      localStorage.setItem('usuario_somesso', JSON.stringify(usuarioLogado));
-
-      loginBox.style.display = 'none';
-      appBox.style.display = 'block';
-
-      usuarioInfo.textContent = `${usuarioLogado.nome || ''} - ${usuarioLogado.perfil || ''}`;
-      aplicarPermissoesUsuario();
-      await carregarDados();
-      return;
-    }catch(e){
-      console.warn('Sessão salva inválida:', e.message);
-    }
+  const email = params.get('email') || params.get('usuario') || localStorage.getItem('portal_usuario_email') || localStorage.getItem('usuario_pcmso_email') || localStorage.getItem('usuario_somesso_email') || '';
+  const usuarioPortal = localStorage.getItem('portal_usuario') || localStorage.getItem('usuario_pcmso') || localStorage.getItem('usuario_somesso');
+  if(usuarioPortal){
+    try{usuarioLogado = JSON.parse(usuarioPortal);}catch(e){}
   }
-
-  if(emailSalvo){
-    emailLogin.value = emailSalvo;
+  if(usuarioLogado){
+    if(email){localStorage.setItem('usuario_pcmso_email', email); localStorage.setItem('usuario_somesso_email', email); localStorage.setItem('portal_usuario_email', email);}
+    localStorage.setItem('usuario_pcmso', JSON.stringify(usuarioLogado));
+    localStorage.setItem('usuario_somesso', JSON.stringify(usuarioLogado));
+    localStorage.setItem('portal_usuario', JSON.stringify(usuarioLogado));
+    loginBox.style.display='none'; appBox.style.display='block';
+    usuarioInfo.textContent = `${usuarioLogado.nome} - ${usuarioLogado.perfil}`;
+    aplicarPermissoesUsuario(); await carregarDados(); return;
   }
+  if(email){ emailLogin.value = email; }
 });
 </script>
 </body>
