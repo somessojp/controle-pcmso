@@ -485,7 +485,15 @@ function buscaEl(){return document.getElementById('busca')}
 function esc(v){return String(v??'').replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
 
 function cnpjLimpo(v){
-  return String(v || '').replace(/\D/g,'');
+  return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g,'');
+}
+function formatarCNPJAlfa(v){
+  const s = cnpjLimpo(v).slice(0,14);
+  if(s.length <= 2) return s;
+  if(s.length <= 5) return s.slice(0,2)+'.'+s.slice(2);
+  if(s.length <= 8) return s.slice(0,2)+'.'+s.slice(2,5)+'.'+s.slice(5);
+  if(s.length <= 12) return s.slice(0,2)+'.'+s.slice(2,5)+'.'+s.slice(5,8)+'/'+s.slice(8);
+  return s.slice(0,2)+'.'+s.slice(2,5)+'.'+s.slice(5,8)+'/'+s.slice(8,12)+'-'+s.slice(12);
 }
 
 function isAdm(){
@@ -671,6 +679,7 @@ async function salvarCadastroEmpresa(){
 
 function preencherEmpresaPorCNPJ(){
   let c = cnpjLimpo(cnpj.value);
+  if(cnpj.value) cnpj.value = formatarCNPJAlfa(cnpj.value);
   let emp = empresasCadastradas.find(e => cnpjLimpo(e.cnpj) === c);
 
   if(emp){
@@ -757,7 +766,7 @@ async function del(id){if(!confirm('Deseja excluir este registro?'))return; msgS
 function excel(){let htmlExcel=`<html><head><meta charset="UTF-8"></head><body>${tab.outerHTML}</body></html>`;let blob=new Blob([htmlExcel],{type:'application/vnd.ms-excel'});let link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='controle_vencimento_pcmsο.xls';document.body.appendChild(link);link.click();document.body.removeChild(link)}
 function pdf(){let mes=mespdf.value;if(!mes){alert('Escolha um mês.');return}let linhas='';itens.forEach(item=>{if(item.data.startsWith(mes)){let st=statusData(item.data);linhas+=`<tr><td>${esc(item.responsavel)}</td><td>${esc(item.contato)}</td><td>${esc(item.telefone)}</td><td>${esc(item.email)}</td><td>${esc(item.cnpj)}</td><td>${esc(item.empresa)}</td><td>${esc(item.tipoEmpresa)||'-'}</td><td>${moeda(item.valor)}</td><td>${esc(item.descricao)}</td><td>${formatarData(item.data)}</td><td>${esc(item.anexoNome||'-')}</td><td>${st[0]}</td></tr>`}});if(!linhas){alert('Nenhum registro encontrado.');return}let win=window.open('');win.document.write(`<html><head><title>Relatório Mensal</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:6px;font-size:12px;text-align:left}th{background:#ddd}</style></head><body><h2>Relatório Mensal - PCMSO</h2><table><thead><tr><th>Responsável</th><th>Contato</th><th>Telefone</th><th>E-mail</th><th>CNPJ</th><th>Empresa</th><th>Tipo da Empresa</th><th>Valor</th><th>Descrição</th><th>Vencimento</th><th>Anexo</th><th>Status</th></tr></thead><tbody>${linhas}</tbody></table></body></html>`);win.document.close();win.print()}
 
-cnpj.addEventListener('input', preencherEmpresaPorCNPJ);
+cnpj.addEventListener('input', function(){ this.value = formatarCNPJAlfa(this.value); preencherEmpresaPorCNPJ(); });
 cnpj.addEventListener('change', preencherEmpresaPorCNPJ);
 cnpj.addEventListener('blur', preencherEmpresaPorCNPJ);
 busca.addEventListener('keyup', render);
