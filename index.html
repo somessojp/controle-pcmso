@@ -192,7 +192,7 @@ h2,h3{
 <div class="box">
 <h2>Controle de vencimento de PCMSO</h2>
 
-<div class="grid">
+<div class="grid" id="formPCMSO">
 <select id="responsavel">
   <option value="">Selecione o responsável</option>
   <option value="Tassio Borges">Tassio Borges</option>
@@ -422,7 +422,7 @@ function render(){
   let busca = buscaEl().value.toLowerCase().trim();
   let visiveis = [...itens];
 
-  if(usuarioLogado && !isAdm()){
+  if(usuarioLogado && !isAdm() && !isVisualizador()){
     const meuNome = String(usuarioLogado.nome || '').toLowerCase().trim();
     const meuVinculo = String(responsavelUsuario()).toLowerCase().trim();
 
@@ -467,7 +467,7 @@ function render(){
 <td style="display:${isVisualizador() ? 'none' : 'table-cell'}">${moeda(item.valor)}</td>
 <td>${esc(item.descricao)}</td>
 <td>${formatarData(item.data)}</td>
-<td style="display:${isVisualizador() ? 'none' : 'table-cell'}">${item.linkAnexo?`<a href="${item.linkAnexo}" target="_blank">📎 ${esc(item.anexoNome||'Anexo')}</a>`:'-'}</td>
+<td>${item.linkAnexo?`<a href="${item.linkAnexo}" target="_blank">📎 ${esc(item.anexoNome||'Anexo')}</a>`:'-'}</td>
 <td>${st[0]}</td>
 <td style="display:${isVisualizador() ? 'none' : 'table-cell'}">
 <button onclick="editarPorId('${item.id}')">Editar</button>
@@ -527,6 +527,10 @@ function aplicarPermissoesUsuario(){
   if(!usuarioLogado) return;
 
   const visualizador = isVisualizador();
+  const formulario = document.getElementById('formPCMSO');
+  if(formulario) formulario.style.display = visualizador ? 'none' : '';
+  const modalEmpresa = document.getElementById('modalEmpresas');
+  if(visualizador && modalEmpresa) modalEmpresa.style.display = 'none';
   const campoValor = document.getElementById('campoValor');
   const campoAnexo = document.getElementById('campoAnexo');
   const thValor = document.getElementById('thValor');
@@ -535,7 +539,7 @@ function aplicarPermissoesUsuario(){
   if(campoValor) campoValor.style.display = visualizador ? 'none' : '';
   if(campoAnexo) campoAnexo.style.display = visualizador ? 'none' : '';
   if(thValor) thValor.style.display = visualizador ? 'none' : '';
-  if(thAnexo) thAnexo.style.display = visualizador ? 'none' : '';
+  if(thAnexo) thAnexo.style.display = '';
   if(thAcao) thAcao.style.display = visualizador ? 'none' : '';
   document.getElementById('btnAdicionar').style.display = podeEditar() ? '' : 'none';
   document.getElementById('btnCancelar').style.display = podeEditar() && editandoId ? 'inline-block' : 'none';
@@ -642,6 +646,7 @@ async function carregarEmpresasPortalCentral(){
 }
 
 function abrirCadastroEmpresas(){
+  if(!podeEditar()){ alert('Seu perfil é somente para visualização.'); return; }
   modalEmpresas.style.display='block';
 }
 
@@ -650,6 +655,7 @@ function fecharCadastroEmpresas(){
 }
 
 async function salvarCadastroEmpresa(){
+  if(!podeEditar()){ alert('Seu perfil é somente para visualização.'); return; }
   let obj = {
     cnpj: cnpjLimpo(cadCnpj.value),
     empresa: cadEmpresa.value.trim(),
@@ -709,6 +715,7 @@ function preencherEmpresaPorCNPJ(){
 
 
 async function add(){
+  if(!podeEditar()){ alert('Seu perfil é somente para visualização.'); return; }
   if(!podeEditar()){ alert('Seu perfil é somente para visualização.'); return; }
   let arquivo = anexo.files[0];
 
@@ -782,7 +789,7 @@ function cancelarEdicao(){editandoId=null; btnAdicionar.innerText='Adicionar'; b
 async function del(id){if(!podeEditar()){alert('Seu perfil é somente para visualização.');return;}if(!confirm('Deseja excluir este registro?'))return; msgSistema.textContent='Excluindo...'; try{await api('excluirPCMSO',{id}); await carregarDados()}catch(e){alert('Erro ao excluir: '+e.message)}}
 
 function excel(){let htmlExcel=`<html><head><meta charset="UTF-8"></head><body>${tab.outerHTML}</body></html>`;let blob=new Blob([htmlExcel],{type:'application/vnd.ms-excel'});let link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='controle_vencimento_pcmsο.xls';document.body.appendChild(link);link.click();document.body.removeChild(link)}
-function pdf(){let mes=mespdf.value;if(!mes){alert('Escolha um mês.');return}let financeiro=!isVisualizador();let linhas='';itens.forEach(item=>{if(item.data.startsWith(mes)){let st=statusData(item.data);linhas+=`<tr><td>${esc(item.responsavel)}</td><td>${esc(item.contato)}</td><td>${esc(item.telefone)}</td><td>${esc(item.email)}</td><td>${esc(item.cnpj)}</td><td>${esc(item.empresa)}</td><td>${esc(item.tipoEmpresa)||'-'}</td>${financeiro?`<td>${moeda(item.valor)}</td>`:''}<td>${esc(item.descricao)}</td><td>${formatarData(item.data)}</td>${financeiro?`<td>${esc(item.anexoNome||'-')}</td>`:''}<td>${st[0]}</td></tr>`}});if(!linhas){alert('Nenhum registro encontrado.');return}let win=window.open('');let cab=`<th>Responsável</th><th>Contato</th><th>Telefone</th><th>E-mail</th><th>CNPJ</th><th>Empresa</th><th>Tipo da Empresa</th>${financeiro?'<th>Valor</th>':''}<th>Descrição</th><th>Vencimento</th>${financeiro?'<th>Anexo</th>':''}<th>Status</th>`;win.document.write(`<html><head><title>Relatório Mensal</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:6px;font-size:12px;text-align:left}th{background:#ddd}</style></head><body><h2>Relatório Mensal - PCMSO</h2><table><thead><tr>${cab}</tr></thead><tbody>${linhas}</tbody></table></body></html>`);win.document.close();win.print()}
+function pdf(){let mes=mespdf.value;if(!mes){alert('Escolha um mês.');return}let financeiro=!isVisualizador();let linhas='';itens.forEach(item=>{if(item.data.startsWith(mes)){let st=statusData(item.data);linhas+=`<tr><td>${esc(item.responsavel)}</td><td>${esc(item.contato)}</td><td>${esc(item.telefone)}</td><td>${esc(item.email)}</td><td>${esc(item.cnpj)}</td><td>${esc(item.empresa)}</td><td>${esc(item.tipoEmpresa)||'-'}</td>${financeiro?`<td>${moeda(item.valor)}</td>`:''}<td>${esc(item.descricao)}</td><td>${formatarData(item.data)}</td><td>${item.linkAnexo?esc(item.anexoNome||'Anexo'):'-'}</td><td>${st[0]}</td></tr>`}});if(!linhas){alert('Nenhum registro encontrado.');return}let win=window.open('');let cab=`<th>Responsável</th><th>Contato</th><th>Telefone</th><th>E-mail</th><th>CNPJ</th><th>Empresa</th><th>Tipo da Empresa</th>${financeiro?'<th>Valor</th>':''}<th>Descrição</th><th>Vencimento</th><th>Anexo</th><th>Status</th>`;win.document.write(`<html><head><title>Relatório Mensal</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:6px;font-size:12px;text-align:left}th{background:#ddd}</style></head><body><h2>Relatório Mensal - PCMSO</h2><table><thead><tr>${cab}</tr></thead><tbody>${linhas}</tbody></table></body></html>`);win.document.close();win.print()}
 
 cnpj.addEventListener('input', function(){ this.value = formatarCNPJAlfa(this.value); preencherEmpresaPorCNPJ(); });
 cnpj.addEventListener('change', preencherEmpresaPorCNPJ);
